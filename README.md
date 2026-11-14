@@ -11,7 +11,7 @@
 ![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
 ![Firebase AI Logic](https://img.shields.io/badge/Firebase-AI%20Logic-ffca28?logo=firebase&logoColor=black)
 ![Gemini Nano](https://img.shields.io/badge/Gemini%20Nano-on--device-8e75ff)
-![Tests](https://img.shields.io/badge/tests-23%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-28%20passing-22c55e)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 [Why](#-why-configshield) · [How it works](#-how-it-works) · [Features](#-features) · [Quick start](#-quick-start) · [Configuration](#%EF%B8%8F-configuration) · [Security](#-security--privacy-design) · [Troubleshooting](#-troubleshooting)
@@ -65,6 +65,7 @@ flowchart LR
 | 1′ | Free-text masking | Browser (JS) | — | If Nano is unavailable, every description, comment and remark is masked whole |
 | 2 | Leak gate | Browser (JS) | — | Re-scans the sanitized text and **blocks** the cloud call if anything sensitive remains |
 | 3 | Deep audit | **Gemini cloud**, then Nano, then rules | `PREFER_IN_CLOUD` | Best model when available, and it still works offline or on a plane |
+| 3″ | Rule merge | Browser (JS) | — | The baseline rule engine always runs too; anything the AI missed is added, labelled **rule engine** |
 | 3′ | Air-gapped audit | Gemini Nano / rules | `ONLY_ON_DEVICE` | For classified or regulated sites: nothing leaves the machine |
 | 4 | Re-hydration | Browser memory | — | The engineer sees real values. The cloud and the database never do |
 
@@ -91,7 +92,7 @@ Every stage shows a live badge (`ON-DEVICE · Gemini Nano` / `CLOUD · Gemini` /
 
 **Auditing**
 - Cloud Gemini deep audit with **JSON-schema-constrained output on both paths** (cloud and on-device).
-- **Baseline rule engine:** 27 deterministic checks, used when no AI is available (see [the table below](#-baseline-rule-checks)).
+- **Baseline rule engine:** 27 deterministic checks (see [the table below](#-baseline-rule-checks)). With no AI it *is* the audit. With an AI report, any issue the model missed is merged in and labelled **rule engine**, so the AI adds context but never drops a check the rules catch.
 - **Security score** (0–100) with capped per-severity deductions.
 - Model output is treated as untrusted: enums are validated, fields coerced, lengths capped and duplicates removed.
 
@@ -143,7 +144,7 @@ The header chip shows **"Firebase: not configured · local demo mode"**. Load a 
 4. **Run:**
    ```bash
    npm install
-   npm test       # 23 unit tests, no Firebase needed
+   npm test       # 28 unit tests, no Firebase needed
    npm run dev    # http://localhost:5173
    ```
 5. Click **Prepare on-device model** (the first download takes a few minutes), load a sample, and click **Redact & audit**.
@@ -190,7 +191,7 @@ Out-of-range values are clamped to safe defaults, so a typo can't trigger thousa
 
 ## 🔎 Baseline rule checks
 
-These run locally on the sanitized text when no AI audit is available.
+These always run locally on the sanitized text. With no AI audit they form the whole report. Otherwise their findings are merged into the AI report, skipping any the AI already raised (matched on distinguishing title keywords, not context words like "VTY" or "SNMP"; when unsure, the rule finding is kept).
 
 | Area | Checks |
 |---|---|
@@ -221,7 +222,7 @@ These run locally on the sanitized text when no AI audit is available.
 ## 🧪 Testing
 
 ```bash
-npm test          # Vitest: redaction engine, leak gate, free-text masking, baseline auditor, output hardening
+npm test          # Vitest: redaction engine, leak gate, free-text masking, baseline auditor, rule merge, output hardening
 npm run typecheck # tsc --noEmit (strict)
 npm run build     # typecheck + production bundle
 ```

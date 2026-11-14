@@ -63,6 +63,8 @@ export interface AuditFinding {
   why: string;
   fix: string;
   reference?: string;
+  /** Set to 'rules' when the baseline rule engine added this finding to an AI report. */
+  origin?: 'rules';
 }
 
 export interface AuditResult {

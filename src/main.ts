@@ -84,7 +84,9 @@ function render() {
         <span class="sev low">${sevCount('low')} low</span></p>
       <p class="muted">${r.stats.deterministicTokens} values masked by rules · ${r.stats.onDeviceTokens} by Gemini Nano on-device${
         r.stats.freeTextTokens ? ` · ${r.stats.freeTextTokens} free-text fields masked wholesale` : ''
-      } · audit ran <strong>${AUDIT_WHERE[r.stats.auditSource]}</strong> · ${(r.stats.elapsedMs / 1000).toFixed(1)}s</p>
+      } · audit ran <strong>${AUDIT_WHERE[r.stats.auditSource]}</strong>${
+        r.stats.rulesAdded ? ` + ${r.stats.rulesAdded} from the baseline rule engine` : ''
+      } · ${(r.stats.elapsedMs / 1000).toFixed(1)}s</p>
       <p>${showText(r.audit.summary)}</p>
     </div>`;
   findingsEl.innerHTML = r.audit.findings.length
@@ -92,7 +94,7 @@ function render() {
         .map(
           (f, i) => `
     <article class="finding ${f.severity}">
-      <header><span class="sev ${f.severity}">${f.severity}</span><h3>${esc(f.id)} · ${showText(f.title)}</h3><span class="cat">${esc(f.category)}</span></header>
+      <header><span class="sev ${f.severity}">${f.severity}</span><h3>${esc(f.id)} · ${showText(f.title)}</h3>${f.origin === 'rules' ? '<span class="origin" title="The AI missed this; the local baseline rule engine found it">rule engine</span>' : ''}<span class="cat">${esc(f.category)}</span></header>
       <p class="why">${showText(f.why)}</p>
       <div class="cols">
         <div><h4>Evidence</h4><pre>${showText(f.evidence)}</pre></div>
@@ -120,7 +122,7 @@ function toMarkdown(r: PipelineResult, rehydrate: boolean): string {
     '',
   ];
   for (const f of r.audit.findings) {
-    lines.push(`## ${f.id} [${f.severity.toUpperCase()}] ${t(f.title)}`, '', `*${f.category}* — ${t(f.why)}`, '', '**Evidence**', '```', t(f.evidence), '```', '**Fix**', '```', t(f.fix), '```');
+    lines.push(`## ${f.id} [${f.severity.toUpperCase()}] ${t(f.title)}${f.origin === 'rules' ? ' _(baseline rule engine)_' : ''}`, '', `*${f.category}* — ${t(f.why)}`, '', '**Evidence**', '```', t(f.evidence), '```', '**Fix**', '```', t(f.fix), '```');
     if (f.reference) lines.push('', `Reference: ${f.reference}`);
     lines.push('');
   }

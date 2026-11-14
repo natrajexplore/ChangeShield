@@ -153,3 +153,66 @@ export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promis
   });
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
+
+// ---- Merging the baseline rule engine into AI reports --------------------------
+
+/** Words too generic to tell two findings apart. */
+const STOP = new Set(
+  ('the and for with from that this are not was has have via any all its into over under use used using instead allowed permitted ' +
+    'enabled enable disabled disable configured configuration config missing weak insecure lack lacks default plain text clear ' +
+    'line lines set no on off of to in is be or an a by as at only').split(' '),
+);
+
+/** Nouns that say WHERE an issue is, not WHAT it is — shared context alone never proves a match. */
+const CONTEXT = new Set(
+  'snmp community vty password secret ike ipsec interface management server access session rule service security hash protocol admin administrative'.split(' '),
+);
+
+const SYNONYMS: Record<string, string> = {
+  sha1: 'sha', triple: '3des', tripledes: '3des', passwords: 'password', secrets: 'secret', communities: 'community',
+  timeouts: 'timeout', https: 'http', logs: 'log', logging: 'log', authentication: 'auth', authorization: 'auth', accounting: 'auth',
+  snmpv1: 'v1', snmpv2c: 'v2c', snmpv2: 'v2c', snmpv3: 'v3', sshv2: 'v2', sshv1: 'v1',
+};
+
+/** Distinguishing keywords of a finding title (lower-case, de-pluralised, synonyms folded). */
+export function keywords(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const raw of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+    const w = SYNONYMS[raw] ?? (raw.length > 4 ? raw.replace(/s$/, '') : raw);
+    if (w.length >= 2 && !STOP.has(w) && !STOP.has(raw) && !/^\d$/.test(w)) out.add(w);
+    if (/^snmpv/.test(raw)) out.add('snmp');
+  }
+  return out;
+}
+
+/**
+ * True when an AI finding already reports the issue a rule finding describes.
+ * Compares titles only, and only on specific keywords (not context nouns like
+ * "vty" or "snmp"). Deliberately conservative: when unsure the rule finding is
+ * kept, because a duplicate is far cheaper than silently dropping a real issue.
+ */
+export function coveredBy(rule: AuditFinding, ai: AuditFinding): boolean {
+  const specific = [...keywords(rule.title)].filter((w) => !CONTEXT.has(w));
+  if (!specific.length) return false;
+  const ak = keywords(ai.title);
+  const shared = specific.filter((w) => ak.has(w)).length;
+  return shared >= (specific.length >= 3 ? 2 : 1);
+}
+
+/**
+ * Adds the rule engine's findings that the AI did not report, tagged
+ * `origin: 'rules'`, then re-sorts by severity, caps and renumbers.
+ */
+export function mergeFindings(ai: AuditResult, rules: AuditResult, max: number): AuditResult & { added: number } {
+  const extra = rules.findings
+    .filter((r) => !ai.findings.some((a) => coveredBy(r, a)))
+    .map((r) => ({ ...r, origin: 'rules' as const }));
+  const rank = (s: Severity) => SEVERITIES.indexOf(s);
+  // Stable sort: within one severity, AI findings stay ahead of rule findings.
+  const all = [...ai.findings, ...extra].sort((x, y) => rank(x.severity) - rank(y.severity)).slice(0, max);
+  const added = all.filter((f) => f.origin === 'rules').length;
+  const note = `The local baseline rule engine added ${added} deterministic finding(s) the AI did not report.`;
+  // Trim the AI text, never the note, so the reader always learns what was added.
+  const summary = added ? [ai.summary.slice(0, 3900 - note.length - 1), note].filter(Boolean).join(' ') : ai.summary;
+  return { summary, findings: all.map((f, i) => ({ ...f, id: `CS-${String(i + 1).padStart(3, '0')}` })), added };
+}

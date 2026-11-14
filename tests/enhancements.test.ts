@@ -116,3 +116,74 @@ describe('model call timeouts', () => {
     await expect(withTimeout(Promise.resolve(7), 1000, 'x')).resolves.toBe(7);
   });
 });
+
+describe('merging baseline rule findings into AI reports', () => {
+  const f = (title: string, severity: 'critical' | 'high' | 'medium' | 'low' | 'info' = 'high', category = 'management-plane') => ({
+    id: '', title, severity, category, evidence: '', why: '', fix: '',
+  });
+  const rule = (title: string) => f(title);
+
+  it('recognises AI findings that report the same issue', async () => {
+    const { coveredBy } = await import('../src/core');
+    const pairs: Array<[string, string]> = [
+      ['Telnet allowed on VTY lines', 'Insecure Telnet access permitted to the router'],
+      ['SNMP community with write (RW) access', 'SNMP community string grants RW access'],
+      ['Idle session timeout disabled (exec-timeout 0 0)', 'No exec-timeout on VTY lines'],
+      ['VTY lines not restricted by an access-class', 'VTY lines lack an access-class ACL'],
+      ['Weak IKE/IPsec encryption (DES/3DES)', 'IKE policy uses 3DES encryption'],
+      ['HTTP management server enabled', 'Unencrypted HTTP server enabled'],
+      ['AAA not enabled (no aaa new-model)', 'AAA new-model not configured'],
+    ];
+    for (const [r, a] of pairs) expect(coveredBy(rule(r), f(a)), `${r} ← ${a}`).toBe(true);
+  });
+
+  it('does not treat a different issue in the same place as covered', async () => {
+    const { coveredBy } = await import('../src/core');
+    const pairs: Array<[string, string]> = [
+      ['SNMPv1/v2c communities in use', 'SNMP community string grants RW access'],
+      ['SNMP community with write (RW) access', 'SNMPv2c enabled without ACL'],
+      ['VTY lines not restricted by an access-class', 'Telnet allowed on VTY lines'],
+      ['Idle session timeout disabled (exec-timeout 0 0)', 'Telnet allowed on VTY lines'],
+      ['Weak IKE hash / integrity algorithm (MD5/SHA-1)', 'Weak IKE/IPsec encryption (DES/3DES)'],
+      ['MD5-based (type 5) password hashes', 'Cleartext or reversible (type 7) passwords'],
+    ];
+    for (const [r, a] of pairs) expect(coveredBy(rule(r), f(a)), `${r} ← ${a}`).toBe(false);
+  });
+
+  it('adds only missed rule findings, tags them, sorts, caps and renumbers', async () => {
+    const { mergeFindings } = await import('../src/core');
+    const { sanitized } = rulesOnly(ios);
+    const baseline = normaliseAudit(baselineAudit(sanitized, detectVendor(ios)), 50);
+    const ai = normaliseAudit(
+      { summary: 'AI summary.', findings: [f('Insecure Telnet access permitted', 'critical'), f('BGP neighbor without password', 'medium', 'control-plane')] },
+      25,
+    );
+    const m = mergeFindings(ai, baseline, 50);
+    expect(m.added).toBe(baseline.findings.length - 1); // only Telnet was already reported
+    expect(m.findings.filter((x) => /telnet/i.test(x.title))).toHaveLength(1);
+    expect(m.findings.find((x) => x.title.startsWith('BGP'))?.origin).toBeUndefined();
+    expect(m.findings.filter((x) => x.origin === 'rules')).toHaveLength(m.added);
+    expect(m.findings.map((x) => x.id)).toEqual(m.findings.map((_, i) => `CS-${String(i + 1).padStart(3, '0')}`));
+    const ranks = m.findings.map((x) => ['critical', 'high', 'medium', 'low', 'info'].indexOf(x.severity));
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b));
+    expect(m.summary).toMatch(/^AI summary\. The local baseline rule engine added \d+/);
+
+    const capped = mergeFindings(ai, baseline, 5);
+    expect(capped.findings).toHaveLength(5);
+    expect(capped.added).toBe(capped.findings.filter((x) => x.origin === 'rules').length);
+  });
+
+  it('keeps the note when the AI summary is at the length limit', async () => {
+    const { mergeFindings } = await import('../src/core');
+    const m = mergeFindings({ summary: 'x'.repeat(3900), findings: [] }, { summary: '', findings: [rule('Telnet allowed on VTY lines')] }, 10);
+    expect(m.summary.length).toBeLessThanOrEqual(3900);
+    expect(m.summary).toMatch(/added 1 deterministic finding/);
+  });
+
+  it('leaves the AI report untouched when nothing was missed', async () => {
+    const { mergeFindings } = await import('../src/core');
+    const ai = { summary: 'S', findings: [{ ...f('Telnet enabled'), id: 'CS-001' }] };
+    const m = mergeFindings(ai, { summary: '', findings: [rule('Telnet allowed on VTY lines')] }, 10);
+    expect(m).toEqual({ ...ai, added: 0 });
+  });
+});

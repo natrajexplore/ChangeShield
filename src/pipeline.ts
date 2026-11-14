@@ -13,7 +13,7 @@ import { deterministicRedact, leakGate, detectVendor, redactFreeText, replaceIde
 import { createAuditor, createLocalAuditor, createRedactor } from './ai/models';
 import { baselineAudit } from './audit/baseline';
 import type { AuditResult, PiiKind } from './ai/schemas';
-import { acceptCandidate, chunkLines, normaliseAudit, safeJson, scoreFindings, TIMEOUTS, withTimeout, type AppSettings } from './core';
+import { acceptCandidate, chunkLines, mergeFindings, normaliseAudit, safeJson, scoreFindings, TIMEOUTS, withTimeout, type AppSettings } from './core';
 
 export { acceptCandidate, chunkLines, scoreFindings };
 
@@ -37,6 +37,8 @@ export interface PipelineResult {
     deterministicTokens: number;
     onDeviceTokens: number;
     freeTextTokens: number;
+    /** Baseline rule findings merged into an AI report because the AI missed them. */
+    rulesAdded: number;
     rulesHit: Record<string, number>;
     redactionSource: Source;
     auditSource: Source;
@@ -192,12 +194,28 @@ export async function runPipeline(
       reason = (e as Error).message;
     }
   }
+  // The baseline rule engine always runs locally on the sanitized text. Without an
+  // AI report it IS the audit; with one, it fills in anything the model missed.
+  const baseline = normaliseAudit(baselineAudit(sanitized, vendor), settings.maxFindings);
+  let rulesAdded = 0;
   if (!audit) {
-    audit = normaliseAudit(baselineAudit(sanitized, vendor), settings.maxFindings);
+    audit = baseline;
     auditSource = 'local_rules';
     emit({ stage: 3, status: 'warn', source: 'local_rules', message: `AI audit unavailable (${reason}) — ran the deterministic baseline rule engine locally: ${audit.findings.length} findings.` });
   } else {
-    emit({ stage: 3, status: 'done', source: auditSource, message: `${audit.findings.length} findings (${auditSource === 'in_cloud' ? 'cloud' : 'on-device'}).` });
+    const aiCount = audit.findings.length;
+    const merged = mergeFindings(audit, baseline, settings.maxFindings);
+    audit = { summary: merged.summary, findings: merged.findings };
+    rulesAdded = merged.added;
+    const where = auditSource === 'in_cloud' ? 'cloud' : 'on-device';
+    emit({
+      stage: 3,
+      status: 'done',
+      source: auditSource,
+      message: rulesAdded
+        ? `${aiCount} AI findings (${where}) + ${rulesAdded} from the local baseline rule engine that the AI missed.`
+        : `${aiCount} findings (${where}); the baseline rule engine found nothing extra.`,
+    });
   }
 
   // ---- Stage 4
@@ -213,6 +231,7 @@ export async function runPipeline(
       deterministicTokens,
       onDeviceTokens: vault.countBySource('on_device'),
       freeTextTokens,
+      rulesAdded,
       rulesHit: det.rulesHit,
       redactionSource,
       auditSource,
