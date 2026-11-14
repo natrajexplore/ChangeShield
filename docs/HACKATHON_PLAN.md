@@ -26,7 +26,7 @@
 
 Treat **Mon Nov 30, 11:59 PM IST** as your own deadline. Your Kiroween submission is due Dec 4, so finish this one first.
 
-**Quota account:** not needed. ChangeShield runs on the free tier (Gemini Nano plus the Gemini Developer API free tier). Apply for Sprint 3 only if you add image generation or other billing-only models. The quota account lasts 4 days, and you pay for anything beyond it.
+**Quota account:** not needed. ConfigShield runs on the free tier (Gemini Nano plus the Gemini Developer API free tier). Apply for Sprint 3 only if you add image generation or other billing-only models. The quota account lasts 4 days, and you pay for anything beyond it.
 
 ## Build plan (16 days)
 

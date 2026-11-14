@@ -1,4 +1,4 @@
-# Devpost submission text — ChangeShield
+# Devpost submission text — ConfigShield
 
 > Copy each section into the matching Devpost field. Replace the `TODO` links before submitting.
 
@@ -19,7 +19,7 @@ I've spent 10+ years as a network security engineer working on Cisco ISE, Palo A
 Hybrid inference solves this exact problem. A small model on the device can do the part that needs privacy, and a large model in the cloud can do the part that needs depth.
 
 ## What it does
-ChangeShield runs a five-stage pipeline in the browser:
+ConfigShield runs a five-stage pipeline in the browser:
 
 1. **Rule-based redaction (local):** 24 keyword-anchored rules for Cisco, PAN-OS, Junos and FortiOS secrets, plus hashes, key/cert blocks, emails, phones and IPs. Tokens stay consistent (`<HOST_1>`, `<IP_PUB_2>`). Weak or default secrets like `public` or `cisco123` become `<WEAKSECRET_n>`, so the auditor can flag them without seeing them.
 2. **Contextual redaction with Gemini Nano (on-device only):** finds the identifiers that rules can't, such as *"Desk of Priya Raman – Treasury"*, *"Tata Comm circuit 045CHEN88812"* or a bank's name in a description. Results are JSON-schema constrained and checked to be verbatim substrings, so hallucinations aren't masked.
