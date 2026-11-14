@@ -109,7 +109,7 @@ function render() {
 function toMarkdown(r: PipelineResult, rehydrate: boolean): string {
   const t = (s: string) => (rehydrate ? vault.rehydrate(s) : s);
   const lines = [
-    `# ConfigShield audit — ${r.vendor}`,
+    `# ChangeShield audit — ${r.vendor}`,
     '',
     `Score: **${r.score}/100** · Findings: ${r.audit.findings.length} · Audit: ${r.stats.auditSource} · Redaction: rules + ${r.stats.redactionSource}`,
     `Generated: ${new Date().toISOString()}`,
@@ -266,7 +266,7 @@ exportBtn.addEventListener('click', () => {
   const md = toMarkdown(last, reveal.checked);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([md], { type: 'text/markdown' }));
-  a.download = `configshield-${reveal.checked ? 'CONFIDENTIAL' : 'sanitized'}-${Date.now()}.md`;
+  a.download = `changeshield-${reveal.checked ? 'CONFIDENTIAL' : 'sanitized'}-${Date.now()}.md`;
   document.body.appendChild(a);
   a.click();
   a.remove();
