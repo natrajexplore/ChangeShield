@@ -133,8 +133,21 @@ describe('merging baseline rule findings into AI reports', () => {
       ['Weak IKE/IPsec encryption (DES/3DES)', 'IKE policy uses 3DES encryption'],
       ['HTTP management server enabled', 'Unencrypted HTTP server enabled'],
       ['AAA not enabled (no aaa new-model)', 'AAA new-model not configured'],
+      // Titles Gemini actually returned on the live site for the Cisco sample:
+      ['Idle session timeout disabled (exec-timeout 0 0)', 'VTY Session Timeout Disabled'],
+      ['Password encryption service disabled', 'Password Encryption Not Enabled'],
     ];
     for (const [r, a] of pairs) expect(coveredBy(rule(r), f(a)), `${r} ← ${a}`).toBe(true);
+  });
+
+  it('matches one combined AI crypto finding to each weak-algorithm rule, by category', async () => {
+    const { coveredBy } = await import('../src/core');
+    const isakmp = f('Weak ISAKMP Cryptographic Suite (DES, MD5, Group 1)', 'high', 'crypto');
+    for (const r of ['Weak IKE/IPsec encryption (DES/3DES)', 'Weak IKE hash / integrity algorithm (MD5/SHA-1)', 'Weak Diffie-Hellman group (1, 2 or 5)'])
+      expect(coveredBy(f(r, 'high', 'crypto'), isakmp), r).toBe(true);
+    // Same "MD5" word, different issue: password hashing (aaa) is not IKE crypto.
+    expect(coveredBy(f('MD5-based (type 5) password hashes', 'medium', 'aaa'), isakmp)).toBe(false);
+    expect(coveredBy(f('AAA not enabled (no aaa new-model)', 'high', 'aaa'), f('AAA Not Enabled (Local Authentication Only)', 'high', 'aaa'))).toBe(true);
   });
 
   it('does not treat a different issue in the same place as covered', async () => {
@@ -146,6 +159,9 @@ describe('merging baseline rule findings into AI reports', () => {
       ['Idle session timeout disabled (exec-timeout 0 0)', 'Telnet allowed on VTY lines'],
       ['Weak IKE hash / integrity algorithm (MD5/SHA-1)', 'Weak IKE/IPsec encryption (DES/3DES)'],
       ['MD5-based (type 5) password hashes', 'Cleartext or reversible (type 7) passwords'],
+      ['VTY lines not restricted by an access-class', 'Insecure Telnet access permitted'],
+      ['SNMP community with write (RW) access', 'Insecure Telnet access permitted'],
+      ['NTP without authentication', 'BGP neighbor without password'],
     ];
     for (const [r, a] of pairs) expect(coveredBy(rule(r), f(a)), `${r} ← ${a}`).toBe(false);
   });

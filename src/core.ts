@@ -158,27 +158,28 @@ export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promis
 
 /** Words too generic to tell two findings apart. */
 const STOP = new Set(
-  ('the and for with from that this are not was has have via any all its into over under use used using instead allowed permitted ' +
+  ('the and for with without from that this are not was has have via any all its into over under use used using instead allowed permitted ' +
     'enabled enable disabled disable configured configuration config missing weak insecure lack lacks default plain text clear ' +
     'line lines set no on off of to in is be or an a by as at only').split(' '),
 );
 
 /** Nouns that say WHERE an issue is, not WHAT it is — shared context alone never proves a match. */
 const CONTEXT = new Set(
-  'snmp community vty password secret ike ipsec interface management server access session rule service security hash protocol admin administrative'.split(' '),
+  'snmp community vty password secret ike ipsec interface management server access session rule service security hash protocol admin administrative type'.split(' '),
 );
 
 const SYNONYMS: Record<string, string> = {
   sha1: 'sha', triple: '3des', tripledes: '3des', passwords: 'password', secrets: 'secret', communities: 'community',
   timeouts: 'timeout', https: 'http', logs: 'log', logging: 'log', authentication: 'auth', authorization: 'auth', accounting: 'auth',
-  snmpv1: 'v1', snmpv2c: 'v2c', snmpv2: 'v2c', snmpv3: 'v3', sshv2: 'v2', sshv1: 'v1',
+  isakmp: 'ike', ikev1: 'ike', ikev2: 'ike', hashes: 'hash', snmpv1: 'v1', snmpv2c: 'v2c', snmpv2: 'v2c', snmpv3: 'v3', sshv2: 'v2', sshv1: 'v1',
 };
 
 /** Distinguishing keywords of a finding title (lower-case, de-pluralised, synonyms folded). */
 export function keywords(text: string): Set<string> {
   const out = new Set<string>();
   for (const raw of text.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
-    const w = SYNONYMS[raw] ?? (raw.length > 4 ? raw.replace(/s$/, '') : raw);
+    // De-pluralise "communities"-style words, but not "access", "class", "status"…
+    const w = SYNONYMS[raw] ?? (raw.length > 4 && !/(?:ss|us|is)$/.test(raw) ? raw.replace(/s$/, '') : raw);
     if (w.length >= 2 && !STOP.has(w) && !STOP.has(raw) && !/^\d$/.test(w)) out.add(w);
     if (/^snmpv/.test(raw)) out.add('snmp');
   }
@@ -187,16 +188,19 @@ export function keywords(text: string): Set<string> {
 
 /**
  * True when an AI finding already reports the issue a rule finding describes.
- * Compares titles only, and only on specific keywords (not context nouns like
- * "vty" or "snmp"). Deliberately conservative: when unsure the rule finding is
- * kept, because a duplicate is far cheaper than silently dropping a real issue.
+ * Compares titles only. A match needs two shared *specific* keywords, or one
+ * plus corroboration: the same category, or a shared context noun ("session",
+ * "password", "ike"…). Context nouns alone never match, so "VTY lacks an
+ * access-class" and "Telnet on VTY" stay separate. When unsure the rule finding
+ * is kept, because a duplicate is far cheaper than silently dropping an issue.
  */
 export function coveredBy(rule: AuditFinding, ai: AuditFinding): boolean {
-  const specific = [...keywords(rule.title)].filter((w) => !CONTEXT.has(w));
-  if (!specific.length) return false;
+  const rk = [...keywords(rule.title)];
   const ak = keywords(ai.title);
-  const shared = specific.filter((w) => ak.has(w)).length;
-  return shared >= (specific.length >= 3 ? 2 : 1);
+  const shared = rk.filter((w) => !CONTEXT.has(w) && ak.has(w)).length;
+  if (shared >= 2) return true;
+  if (shared === 0) return false;
+  return rule.category === ai.category || rk.some((w) => CONTEXT.has(w) && ak.has(w));
 }
 
 /**
