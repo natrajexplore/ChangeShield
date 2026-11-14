@@ -86,7 +86,7 @@ export function getFirebase(): FirebaseServices | null {
     };
   } catch (e) {
     initError = e as Error;
-    console.warn('[ChangeShield] Firebase init failed — running in local demo mode', e);
+    console.warn('[ConfigShield] Firebase init failed — running in local demo mode', e);
   }
   return services;
 }
@@ -135,7 +135,7 @@ export function loadSettings(): Promise<AppSettings> {
     try {
       await fetchAndActivate(fb.remoteConfig);
     } catch (e) {
-      console.warn('[ChangeShield] Remote Config fetch failed, using defaults', e);
+      console.warn('[ConfigShield] Remote Config fetch failed, using defaults', e);
     }
     const rc = fb.remoteConfig;
     return clampSettings({

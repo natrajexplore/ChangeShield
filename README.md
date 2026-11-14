@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🛡️ ChangeShield
+# 🛡️ ConfigShield
 
 ### Privacy-first, hybrid-AI network configuration auditor
 
@@ -14,7 +14,7 @@
 ![Tests](https://img.shields.io/badge/tests-23%20passing-22c55e)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-[Why](#-why-changeshield) · [How it works](#-how-it-works) · [Features](#-features) · [Quick start](#-quick-start) · [Configuration](#%EF%B8%8F-configuration) · [Security](#-security--privacy-design) · [Troubleshooting](#-troubleshooting)
+[Why](#-why-configshield) · [How it works](#-how-it-works) · [Features](#-features) · [Quick start](#-quick-start) · [Configuration](#%EF%B8%8F-configuration) · [Security](#-security--privacy-design) · [Troubleshooting](#-troubleshooting)
 
 </div>
 
@@ -22,7 +22,7 @@
 
 ## 📌 Overview
 
-ChangeShield is a browser app for network and security engineers. Paste a Cisco `show running-config`, a PAN-OS `set` export, a Junos or a FortiOS config, and it will:
+ConfigShield is a browser app for network and security engineers. Paste a Cisco `show running-config`, a PAN-OS `set` export, a Junos or a FortiOS config, and it will:
 
 1. **Redact on-device.** Deterministic rules, then **Gemini Nano running inside Chrome**, strip passwords, keys, SNMP communities, hashes, IPs, hostnames and free-text identifiers (customer names, people, sites, circuit IDs).
 2. **Audit in the cloud.** **Gemini** runs a deep hardening audit on the *sanitized* config only. Each finding has a severity, evidence, why it matters, and the exact vendor CLI fix.
@@ -32,7 +32,7 @@ If the cloud is unavailable, the audit falls back to Gemini Nano. If Nano is una
 
 > Built for **#BuildHybridAI 2026** (Firebase AI Logic hybrid inference), category **Web (Chrome)**.
 
-## 💡 Why ChangeShield?
+## 💡 Why ConfigShield?
 
 Network configs are among the most sensitive files a company owns. A single running config can contain enable secrets, VPN pre-shared keys, SNMP communities, public IP ranges, customer names in interface descriptions, and carrier circuit IDs. Most security policies forbid pasting that into a cloud chatbot, so engineers either **skip the review** or **sanitize by hand**, which is slow and error-prone.
 
