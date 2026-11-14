@@ -11,7 +11,7 @@
 ![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)
 ![Firebase AI Logic](https://img.shields.io/badge/Firebase-AI%20Logic-ffca28?logo=firebase&logoColor=black)
 ![Gemini Nano](https://img.shields.io/badge/Gemini%20Nano-on--device-8e75ff)
-![Tests](https://img.shields.io/badge/tests-22%20passing-22c55e)
+![Tests](https://img.shields.io/badge/tests-23%20passing-22c55e)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 [Why](#-why-changeshield) · [How it works](#-how-it-works) · [Features](#-features) · [Quick start](#-quick-start) · [Configuration](#%EF%B8%8F-configuration) · [Security](#-security--privacy-design) · [Troubleshooting](#-troubleshooting)
@@ -143,7 +143,7 @@ The header chip shows **"Firebase: not configured · local demo mode"**. Load a 
 4. **Run:**
    ```bash
    npm install
-   npm test       # 22 unit tests, no Firebase needed
+   npm test       # 23 unit tests, no Firebase needed
    npm run dev    # http://localhost:5173
    ```
 5. Click **Prepare on-device model** (the first download takes a few minutes), load a sample, and click **Redact & audit**.

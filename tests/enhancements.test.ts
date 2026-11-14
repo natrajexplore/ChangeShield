@@ -108,3 +108,11 @@ describe('model output hardening', () => {
     expect(clampSettings({ ...DEFAULT_SETTINGS, chunkChars: Number.NaN }).chunkChars).toBe(DEFAULT_SETTINGS.chunkChars);
   });
 });
+
+describe('model call timeouts', () => {
+  it('rejects a stalled call and passes a fast one through', async () => {
+    const { withTimeout } = await import('../src/core');
+    await expect(withTimeout(new Promise(() => {}), 20, 'Nano')).rejects.toThrow('Nano timed out');
+    await expect(withTimeout(Promise.resolve(7), 1000, 'x')).resolves.toBe(7);
+  });
+});

@@ -13,7 +13,7 @@ import { deterministicRedact, leakGate, detectVendor, redactFreeText, replaceIde
 import { createAuditor, createLocalAuditor, createRedactor } from './ai/models';
 import { baselineAudit } from './audit/baseline';
 import type { AuditResult, PiiKind } from './ai/schemas';
-import { acceptCandidate, chunkLines, normaliseAudit, safeJson, scoreFindings, type AppSettings } from './core';
+import { acceptCandidate, chunkLines, normaliseAudit, safeJson, scoreFindings, TIMEOUTS, withTimeout, type AppSettings } from './core';
 
 export { acceptCandidate, chunkLines, scoreFindings };
 
@@ -61,8 +61,10 @@ async function onDeviceRedact(
   let out = text;
   for (let i = 0; i < chunks.length; i++) {
     emit({ stage: 1, status: 'running', source: 'on_device', message: `Gemini Nano scanning chunk ${i + 1}/${chunks.length}…` });
-    const res = await redactor.generateContent(
-      `Configuration excerpt:\n"""\n${chunks[i]}\n"""\nList remaining sensitive values as JSON.`,
+    const res = await withTimeout(
+      redactor.generateContent(`Configuration excerpt:\n"""\n${chunks[i]}\n"""\nList remaining sensitive values as JSON.`),
+      TIMEOUTS.onDeviceChunkMs,
+      'Gemini Nano redaction',
     );
     if (res.response.inferenceSource && res.response.inferenceSource !== 'on_device') {
       // Defence in depth — ONLY_ON_DEVICE should make this impossible.
@@ -86,9 +88,11 @@ export function describeLeaks(leak: LeakReport): string {
   return [...counts].map(([k, n]) => `${k} ×${n}`).join(', ');
 }
 
-async function auditPrompt(model: GenerativeModel, vendor: string, policy: string, text: string) {
-  const res = await model.generateContent(
-    `Vendor/platform: ${vendor}\nPolicy pack: ${policy}\nSanitized configuration:\n"""\n${text}\n"""\nReturn the audit as JSON.`,
+async function auditPrompt(model: GenerativeModel, vendor: string, policy: string, text: string, timeoutMs: number) {
+  const res = await withTimeout(
+    model.generateContent(`Vendor/platform: ${vendor}\nPolicy pack: ${policy}\nSanitized configuration:\n"""\n${text}\n"""\nReturn the audit as JSON.`),
+    timeoutMs,
+    'Audit model',
   );
   return { text: res.response.text(), source: (res.response.inferenceSource ?? 'in_cloud') as Source };
 }
@@ -156,7 +160,7 @@ export async function runPipeline(
   if (!cloudBlockReason) {
     try {
       emit({ stage: 3, status: 'running', source: 'in_cloud', message: `Deep audit with ${settings.cloudModel} (${mode === 'cloud' ? 'cloud only' : 'hybrid, cloud-preferred'})…` });
-      const r = await auditPrompt(createAuditor(settings.cloudModel, mode === 'cloud' ? 'cloud' : 'hybrid'), vendor, settings.policyPack, sanitized);
+      const r = await auditPrompt(createAuditor(settings.cloudModel, mode === 'cloud' ? 'cloud' : 'hybrid'), vendor, settings.policyPack, sanitized, TIMEOUTS.cloudAuditMs);
       const parsed = normaliseAudit(safeJson<AuditResult>(r.text), settings.maxFindings);
       if (parsed.findings.length || parsed.summary) {
         audit = parsed;
@@ -174,7 +178,7 @@ export async function runPipeline(
       const parts = chunkLines(sanitized, Math.min(settings.chunkChars, 9000));
       for (let i = 0; i < parts.length; i++) {
         emit({ stage: 3, status: 'running', source: 'on_device', message: `Gemini Nano auditing chunk ${i + 1}/${parts.length}…` });
-        const r = await auditPrompt(local, vendor, settings.policyPack, parts[i]);
+        const r = await auditPrompt(local, vendor, settings.policyPack, parts[i], TIMEOUTS.onDeviceChunkMs);
         const p = safeJson<AuditResult>(r.text);
         if (Array.isArray(p?.findings)) merged.findings.push(...p.findings);
         if (typeof p?.summary === 'string' && p.summary) merged.summary += (merged.summary ? ' ' : '') + p.summary;

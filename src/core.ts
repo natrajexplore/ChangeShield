@@ -141,3 +141,15 @@ export function normaliseAudit(a: unknown, max: number): AuditResult {
     findings: findings.slice(0, max).map((f, i) => ({ ...f, id: `CS-${String(i + 1).padStart(3, '0')}` })),
   };
 }
+
+/** Model call budgets. A stalled call must fall back, never freeze the UI. */
+export const TIMEOUTS = { onDeviceChunkMs: 60_000, cloudAuditMs: 90_000 } as const;
+
+/** Reject if `p` hasn't settled within `ms`. (The underlying call is abandoned, not cancelled.) */
+export function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
+}
