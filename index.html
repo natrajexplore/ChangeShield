@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ConfigShield — privacy-first network config auditor. Secrets are redacted on-device with Gemini Nano before any cloud AI sees the config." />
+    <title>ConfigShield — Hybrid AI Network Config Auditor</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><path d='M16 2 4 7v8c0 7.5 5.1 13.6 12 15 6.9-1.4 12-7.5 12-15V7z' fill='%2322c55e'/></svg>" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true"><path d="M16 2 4 7v8c0 7.5 5.1 13.6 12 15 6.9-1.4 12-7.5 12-15V7z" fill="currentColor"/></svg>
+        <div>
+          <h1>ConfigShield</h1>
+          <p>Your configs stay on your device. Only sanitized text ever reaches the cloud.</p>
+        </div>
+      </div>
+      <div class="status">
+        <span id="nano-chip" class="chip">Gemini Nano: checking…</span>
+        <span id="auth-chip" class="chip">Auth: …</span>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel" aria-labelledby="in-h">
+        <div class="panel-head">
+          <h2 id="in-h">1 · Paste a device configuration</h2>
+          <div class="row">
+            <button id="load-ios" class="ghost" type="button">Sample: Cisco IOS-XE</button>
+            <button id="load-pan" class="ghost" type="button">Sample: PAN-OS</button>
+            <label class="ghost file">Open file<input id="file" type="file" accept=".cfg,.txt,.conf,.log,.set,.config" hidden /></label>
+          </div>
+        </div>
+        <textarea id="raw" spellcheck="false" aria-label="Device configuration" placeholder="show running-config output, PAN-OS 'set' commands, Junos 'set' format…  (Ctrl+Enter to run)"></textarea>
+        <span id="char-count" class="muted count" aria-live="polite"></span>
+        <div class="controls">
+          <fieldset class="modes" aria-label="Inference mode">
+            <label><input type="radio" name="mode" value="hybrid" checked /> Hybrid <small>(recommended)</small></label>
+            <label><input type="radio" name="mode" value="local" /> Air-gapped <small>(on-device only)</small></label>
+            <label><input type="radio" name="mode" value="cloud" /> Cloud <small>(rules-only redaction)</small></label>
+          </fieldset>
+          <div class="row">
+            <button id="prep" class="ghost" type="button">Prepare on-device model</button>
+            <button id="run" class="primary" type="button" title="Ctrl+Enter">Redact &amp; audit</button>
+          </div>
+        </div>
+        <progress id="dl" max="1" value="0" hidden></progress>
+        <ol id="stages" class="stages" aria-live="polite"></ol>
+      </section>
+
+      <section class="panel" aria-labelledby="out-h">
+        <div class="panel-head">
+          <h2 id="out-h">2 · Audit report</h2>
+          <div class="row">
+            <label class="toggle"><input id="reveal" type="checkbox" /> Reveal real values (local only)</label>
+            <button id="save" class="ghost" type="button" disabled>Save sanitized report</button>
+            <button id="export" class="ghost" type="button" disabled>Export .md</button>
+          </div>
+        </div>
+        <div id="summary" class="summary empty" aria-live="polite">Run an audit to see findings.</div>
+        <div id="findings" class="findings"></div>
+        <details class="sanitized">
+          <summary>What the cloud model actually saw (sanitized config)</summary>
+          <pre id="sanitized"></pre>
+        </details>
+        <details class="history">
+          <summary>Saved reports (Firestore)</summary>
+          <ul id="history"></ul>
+        </details>
+      </section>
+    </main>
+
+    <footer class="foot">
+      Built with Firebase AI Logic hybrid inference · Gemini Nano on-device + Gemini in the cloud · App Check · Auth · Firestore · Remote Config
+    </footer>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
