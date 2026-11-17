@@ -1,5 +1,5 @@
 /**
- * ConfigShield pipeline
+ * ChangeShield pipeline
  *
  *   raw config ──► [0] deterministic redaction (local rules)
  *              ──► [1] contextual redaction   (Gemini Nano, ONLY_ON_DEVICE)

@@ -1,5 +1,5 @@
 {
-  "name": "configshield",
+  "name": "changeshield",
   "version": "0.1.0",
   "description": "Privacy-first network config auditor: on-device redaction with Gemini Nano, cloud deep audit with Gemini, via Firebase AI Logic hybrid inference.",
   "scripts": {

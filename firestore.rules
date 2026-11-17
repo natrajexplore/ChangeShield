@@ -1,5 +1,5 @@
 rules_version = '2';
-// ConfigShield: each user may only read/write their own SANITIZED audit reports.
+// ChangeShield: each user may only read/write their own SANITIZED audit reports.
 // Raw configs and the token vault are never stored — the allowed key list enforces it.
 service cloud.firestore {
   match /databases/{database}/documents {
